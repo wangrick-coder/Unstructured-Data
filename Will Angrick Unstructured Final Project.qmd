@@ -1,0 +1,278 @@
+---
+title: "Unstructured Final Presentation"
+author: "Will Angrick"
+format: html
+---
+
+## Extract games, game urls, and sales
+
+```{python}
+import time
+import random
+import requests
+import pandas as pd
+from bs4 import BeautifulSoup
+
+link = "https://en.wikipedia.org/wiki/List_of_best-selling_video_games"
+headers = {"User-Agent": "Mozilla/5.0"}
+
+link_request = requests.get(link, headers=headers)
+soup = BeautifulSoup(link_request.text, "html.parser")
+table = soup.find("table", class_="wikitable")
+rows = table.select('tr')
+
+games = []
+
+for row in rows[1:]:
+    game_link = row.select_one("th a")
+    sales_link = row.select('td')
+    if game_link and len(sales_link)>0:
+        title = game_link.text.strip()
+        game_url = "https://en.wikipedia.org" + game_link.get("href")
+        if sales_link[1].get_text(" ", strip=True).isdigit():
+            sales_text = sales_link[1].get_text(" ", strip=True)
+        else:
+            sales_text = sales_link[0].get_text(" ", strip=True)
+        games.append({
+            "game": title,
+            "url": game_url,
+            "sales": sales_text,
+        })
+
+games_df = pd.DataFrame(games)
+```
+
+
+## Add publishers to dataframe
+```{python}
+publishers = []
+
+for url in games_df['url']:
+    time.sleep(random.uniform(0.25, 0.75))
+    publisher = None
+    try:
+        link_request = requests.get(url, headers=headers)
+        soup = BeautifulSoup(link_request.content, 'html.parser')
+
+        infobox = soup.select_one('.infobox')
+
+        if infobox:
+            rows_infobox = infobox.select("tr")
+            for x in rows_infobox:
+                header = x.select_one("th")
+                if header and "Publisher" in header.text.strip():
+                    publisher = x.select_one("td").get_text(" ", strip=True).split(" ")[0]
+                    break
+
+    except Exception:
+        publisher = None
+
+    publishers.append(publisher)
+
+games_df["publisher"] = publishers
+```
+
+
+## Add sales to dataframe and plot total sales and game count by publishers
+
+```{python}
+import re
+import matplotlib.pyplot as plt
+
+games_df["sales_num"] = pd.to_numeric(games_df["sales"], errors="coerce")
+
+pub_sales = (
+    games_df.dropna(subset=["publisher", "sales_num"])
+            .groupby("publisher")["sales_num"]
+            .sum()
+            .sort_values(ascending=False)
+)
+```
+
+```{python}
+pub_sales.head(10).plot(kind="bar", figsize=(10,5), title="Total Sales by Publisher")
+plt.xlabel('Publisher')
+plt.ylabel("Total Sales")
+plt.show()
+
+pub_counts = games_df["publisher"].value_counts().head(10)
+pub_counts.plot(kind="bar", figsize=(10,5))
+
+plt.title("Number of Best-Selling Games by Publisher")
+plt.ylabel("Number of Games")
+plt.xlabel("Publisher")
+plt.show()
+```
+
+Nintendo dominates the video game industry in the number of best-selling video games with 16 and leads in sales with 392 million copies sold. Rockstar and Mojang trail in copies sold with 372 ane 350 million. While their sales are extraordinarly high, they come from the GTA series and Minecraft, respectively. There are many mid-tier publishers vying for market share such as Krafton, Curve, ConcernedApe, Blizzard, Bethesda, etc.
+
+
+## Add genres of each videogame to dataframe
+
+```{python}
+genres = []
+
+for url in games_df['url']:
+    time.sleep(random.uniform(0.25, 0.75))
+    genre = None
+    
+    try:
+        link_request = requests.get(url, headers=headers)
+        soup = BeautifulSoup(link_request.content, 'html.parser')
+
+        infobox = soup.select_one('.infobox')
+
+        if infobox:
+            rows_infobox = infobox.select("tr")
+            for x in rows_infobox:
+                header = x.select_one("th")
+                if header and "Genre" in header.text.strip():
+                    td = x.select_one("td")
+                    first_genre = td.select_one("a")
+                    if first_genre:
+                        genre = first_genre.get_text(strip=True)
+                    else:
+                        genre = td.get_text(" ", strip=True)
+                    break
+
+    except Exception:
+        genre = None
+
+    genres.append(genre)
+games_df["genre"] = genres
+```
+
+
+```{python}
+total_sales_by_genre = (
+    games_df.dropna(subset=["genre", "sales_num"])
+            .groupby("genre")["sales_num"]
+            .sum()
+            .sort_values(ascending=False)
+)
+
+total_sales_by_genre
+```
+
+```{python}
+total_sales_by_genre.head(10).plot(kind="bar", figsize=(10,5), title="Total Sales by Genre")
+plt.xlabel('Genre')
+plt.ylabel("Total Sales")
+plt.show()
+
+pub_counts = games_df["genre"].value_counts().head(10)
+pub_counts.plot(kind="bar", figsize=(10,5))
+
+plt.title("Number of Best-Selling Games by Genre")
+plt.ylabel("Number of Games")
+plt.xlabel("Genre")
+plt.show()
+```
+
+In terms of genres, action-adventure and puzzle have the highest sales with 549 and 520 million copies sold. Action-adventure and action role-playing are tied for the highest number of best-selling games with eight and first-person shoooter is in second with seven games. There is a large variety of popular game genres which includes sports, sandbox, and social simulations as well.
+
+## Extract gameplay section from game urls
+
+```{python}
+import re
+import requests
+from bs4 import BeautifulSoup
+
+gameplay_list = []
+
+for link in games_df["url"]:
+
+    r = requests.get(link, headers=headers)
+    soup = BeautifulSoup(r.content, "html.parser")
+
+    text = soup.select_one("#mw-content-text")
+
+    everything = text.select("*")
+    all_text = [x.get_text(" ", strip=True) for x in everything]
+    all_text = "\n".join(all_text)
+
+    match = re.search(r"(?<=Gameplay).*?(?=Development)", all_text, re.S)
+
+    gameplay_text = match.group(0).strip() if match else None
+
+    gameplay_list.append(gameplay_text)
+
+games_df["gameplay_text"] = gameplay_list
+```
+
+```{python}
+soup.select(".mw-heading.mw-heading2+p")
+```
+```{python}
+import lda
+import seaborn as sns
+import re
+import numpy as np
+import matplotlib.pyplot as plt
+import statsmodels.api as sm
+import statsmodels.formula.api as smf
+
+import pandas as pd
+import pprint as pprint
+
+from sklearn.feature_extraction.text import CountVectorizer
+
+stopwords = requests.get('https://raw.githubusercontent.com/stopwords-iso/stopwords-en/refs/heads/master/stopwords-en.txt')
+stopwords = stopwords.text.split('\n')
+
+df = games_df.dropna(subset=["gameplay_text"]).reset_index(drop=True)
+clean_stopwords = ([x.strip() for x in stopwords if x.strip() != ""])
+
+custom_words = [
+    "player","players",
+    "game","games","gameplay"
+    "play","playing",
+    "level","levels",
+    "mode","modes",
+    "enemy","enemies",
+    "world","items","item",
+    "character","characters",
+    "edit","retrieved","archived",
+    "include","including","called"
+    "january","february","march","april",
+    "may","june","july","august",
+    "september","october","november","december",
+    "mario","pokemon","bowser","spiderman",
+    "michael","niko","nintendo"
+]
+
+clean_stopwords = clean_stopwords + custom_words
+
+df["clean_text"] = (
+    df["gameplay_text"]
+      .str.lower()
+      .str.replace(r"\s+", " ", regex=True)
+      .str.replace(r"[^a-z\s]", "", regex=True)
+      .str.strip()
+)
+
+df["clean_text"] = df["clean_text"].apply(
+    lambda s: " ".join([x for x in s.split() if x not in clean_stopwords])
+)
+
+vectorizer = CountVectorizer()
+X = vectorizer.fit_transform(df['clean_text'])
+vocab = vectorizer.get_feature_names_out()
+
+n_topics = 5
+model = lda.LDA(n_topics=n_topics, n_iter=500, random_state=1)
+model.fit(X)
+
+topic_word = model.topic_word_ 
+doc_topic = model.doc_topic_ 
+
+n_top_words = 10
+top_words = []
+for i, topic_dist in enumerate(topic_word):
+    topic_words = np.array(vocab)[np.argsort(topic_dist)][:-n_top_words:-1]
+    top_words.append(' '.join(topic_words))
+    print('Topic {}: {}'.format(i, ' '.join(topic_words)))
+```
+
+
+
