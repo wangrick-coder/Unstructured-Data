@@ -42,6 +42,7 @@ for row in rows[1:]:
 games_df = pd.DataFrame(games)
 ```
 
+I selected the Wikipedia page for best-selling video games as my data source. I extracted the game titles, urls, and sales from the first table on the page. The sales data is in millions of copies sold and is a mix of numeric and text values, which I cleaned later on. 
 
 ## Add publishers to dataframe
 ```{python}
@@ -72,6 +73,7 @@ for url in games_df['url']:
 games_df["publisher"] = publishers
 ```
 
+Next, I added the publisher of each game to the dataframe. I looped through each game url and extracted the publisher from the infobox on the game's Wikipedia page. However, some games did not have a publisher listed, so those values are null in the dataframe.
 
 ## Add sales to dataframe and plot total sales and game count by publishers
 
@@ -104,8 +106,7 @@ plt.xlabel("Publisher")
 plt.show()
 ```
 
-Nintendo dominates the video game industry in the number of best-selling video games with 16 and leads in sales with 392 million copies sold. Rockstar and Mojang trail in copies sold with 372 ane 350 million. While their sales are extraordinarly high, they come from the GTA series and Minecraft, respectively. There are many mid-tier publishers vying for market share such as Krafton, Curve, ConcernedApe, Blizzard, Bethesda, etc.
-
+I converted sales to numeric values and grouped by publisher. The bar graphs show Nintendo dominates the video game industry in the number of best-selling video games with 16 and leads in sales with 392 million copies sold. Rockstar and Mojang trail in copies sold with 372 ane 350 million. While their sales are extraordinarly high, they come from the GTA series and Minecraft, respectively. There are many mid-tier publishers vying for market share such as Krafton, Curve, ConcernedApe, Blizzard, Bethesda, etc.
 
 ## Add genres of each videogame to dataframe
 
@@ -169,7 +170,7 @@ plt.xlabel("Genre")
 plt.show()
 ```
 
-In terms of genres, action-adventure and puzzle have the highest sales with 549 and 520 million copies sold. Action-adventure and action role-playing are tied for the highest number of best-selling games with eight and first-person shoooter is in second with seven games. There is a large variety of popular game genres which includes sports, sandbox, and social simulations as well.
+I performed the same analysis as above, but grouped sales by video game genre instead. The bar graphs show action-adventure and puzzle have the highest sales with 549 and 520 million copies sold. Action-adventure and action role-playing are tied for the highest number of best-selling games with eight and first-person shoooter is in second with seven games. There is a large variety of popular game genres which includes sports, sandbox, and social simulations as well.
 
 ## Extract gameplay section from game urls
 
@@ -274,5 +275,8 @@ for i, topic_dist in enumerate(topic_word):
     print('Topic {}: {}'.format(i, ' '.join(topic_words)))
 ```
 
+Lastly, I extracted the gameplay section from each game's Wikipedia page. I cleaned the text and removed generic and custom stopwords, then performed topic modeling using LDA to identify common themes in the gameplay descriptions. The top words for each topic suggest themes such as combat mechanics, character progression, open-world exploration, puzzle-solving, and multiplayer features. However, the topics are not very distinct and there is some overlap in the top words across topics, which may be due to Wikipedia noise and common game names.
 
+
+In conclusion, I found key insights about the best-selling video game industry, such as the dominance of Nintendo in sales and number of games, the popularity of action-adventure and puzzle genres, and common themes in gameplay descriptions. However, there are limitations to this analysis such as missing data for some games, potential bias in Wikipedia content, and the small sample size of 50 games. As a result, future work could involve expanding the dataset to include more games, using additional data sources, building a game similarity model based on gameplay descriptions or performing a genre versus gameplay mechanics analysis, and including paramaters for better topic modeling results.
 
